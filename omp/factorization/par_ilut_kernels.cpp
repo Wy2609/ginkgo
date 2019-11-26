@@ -101,9 +101,9 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
                      new_row_ptrs + 1);
 
     // second sweep: accumulate non-zeros
-    auto new_nz = new_row_ptrs[num_rows];
-    new_col_idxs_array.resize_and_reset(new_nz);
-    new_vals_array.resize_and_reset(new_nz);
+    auto new_nnz = new_row_ptrs[num_rows];
+    new_col_idxs_array.resize_and_reset(new_nnz);
+    new_vals_array.resize_and_reset(new_nnz);
     auto new_col_idxs = new_col_idxs_array.get_data();
     auto new_vals = new_vals_array.get_data();
 
