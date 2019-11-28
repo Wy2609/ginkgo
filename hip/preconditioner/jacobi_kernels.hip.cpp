@@ -59,7 +59,7 @@ namespace {
 
 
 // a total of 32 warps (1024 threads)
-constexpr int default_block_size = 32;
+constexpr int default_block_size = 16;
 // with current architectures, at most 32 warps can be scheduled per SM (and
 // current GPUs have at most 84 SMs)
 constexpr int default_grid_size = 32 * 32 * 128;
