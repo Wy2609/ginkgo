@@ -57,7 +57,7 @@ namespace par_ilut_factorization {
 template <typename ValueType>
 remove_complex<ValueType> fast_abs(ValueType v)
 {
-    if (is_complex_s<ValueType>::value) {
+    if (is_complex<ValueType>()) {
         return squared_norm(v);
     } else {
         return abs(real(v));
@@ -68,7 +68,7 @@ remove_complex<ValueType> fast_abs(ValueType v)
 template <typename ValueType>
 remove_complex<ValueType> fast_abs_result(remove_complex<ValueType> v)
 {
-    if (is_complex_s<ValueType>::value) {
+    if (is_complex<ValueType>()) {
         return sqrt(v);
     } else {
         return v;
@@ -110,7 +110,7 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
     auto row_ptrs = a->get_const_row_ptrs();
     auto col_idxs = a->get_const_col_idxs();
     auto vals = a->get_const_values();
-    auto threshold_internal = fast_abs(threshold);
+    auto threshold_internal = fast_abs<ValueType>(threshold);
 
     // first sweep: count nnz for each row
     new_row_ptrs_array.resize_and_reset(num_rows + 1);
