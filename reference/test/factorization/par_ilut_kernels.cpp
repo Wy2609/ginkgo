@@ -62,10 +62,10 @@ protected:
     using Coo = gko::matrix::Coo<value_type, index_type>;
     using Csr = gko::matrix::Csr<value_type, index_type>;
     using ComplexCsr = gko::matrix::Csr<std::complex<value_type>, index_type>;
-    static constexpr auto i = std::complex<value_type>(0, 1);
 
     ParIlut()
-        : ref(gko::ReferenceExecutor::create()),
+        : i{0., 1.},
+          ref(gko::ReferenceExecutor::create()),
           exec(std::static_pointer_cast<const gko::Executor>(ref)),
 
           mtx1(gko::initialize<Csr>({{.1, .1, -1., -2.},
@@ -111,6 +111,8 @@ protected:
                                                   {1., -1., 0., 0.}},
                                                  ref))
     {}
+
+    std::complex<value_type> i;
 
     std::shared_ptr<const gko::ReferenceExecutor> ref;
     std::shared_ptr<const gko::Executor> exec;
