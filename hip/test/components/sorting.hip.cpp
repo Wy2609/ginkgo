@@ -115,7 +115,7 @@ protected:
 };
 
 
-TEST_F(Sorting, HipBitonicSortWarp)
+TEST_F(Sorting, BitonicSortWarp)
 {
     hipLaunchKernelGGL(HIP_KERNEL_NAME(test_sort_warp), dim3(1),
                        dim3(config::warp_size), 0, 0, ddata.get_data());
@@ -128,7 +128,7 @@ TEST_F(Sorting, HipBitonicSortWarp)
 }
 
 
-TEST_F(Sorting, HipBitonicSortShared)
+TEST_F(Sorting, BitonicSortShared)
 {
     hipLaunchKernelGGL(HIP_KERNEL_NAME(test_sort_shared), dim3(1),
                        dim3(num_threads), 0, 0, ddata.get_data());

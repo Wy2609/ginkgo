@@ -30,6 +30,60 @@ THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 ******************************<GINKGO LICENSE>*******************************/
 
+
+/**
+ * @internal
+ * Computes the prefix sum and total sum of `element` over a warp.
+ *
+ * @param element     the element over which we compute the prefix sum.
+ * @param prefix_sum  will be set to the sum of all `element`s from lower warp
+ *                    lanes, plus the local `element` if `inclusive` is `true`.
+ * @param total_sum   will be set to the sum of all `element`s from this warp.
+ *
+ * @tparam inclusive  if this is true, the computed prefix sum will be
+ *                    inclusive, otherwise it will be exclusive.
+ *
+ * @note For this function to work on architectures with independent thread
+ * scheduling, all threads of the warp have to execute it.
+ */
+template <bool inclusive, typename ValueType>
+__device__ void warp_prefix_sum(ValueType element, ValueType &prefix_sum,
+                                ValueType &total_sum)
+{
+    prefix_sum = inclusive ? element : zero<ValueType>();
+    total_sum = element;
+    auto warp = group::thread_block_tile<config::warp_size>{};
+#pragma unroll
+    // inclusive hypercube prefix sum
+    for (auto step = 1; step < config::warp_size; step *= 2) {
+        auto neighbor = warp.shfl_xor(total_sum, step);
+        total_sum += neighbor;
+        prefix_sum += bool(threadIdx.x & step) ? neighbor : 0;
+    }
+}
+
+/**
+ * @internal
+ * Computes the prefix sum of `element` over a warp.
+ *
+ * @param element     the element over which we compute the prefix sum.
+ * @param prefix_sum  will be set to the sum of all `element`s from lower warp
+ *                    lanes, plus the local `element` if `inclusive` is `true`.
+ *
+ * @tparam inclusive  if this is true, the computed prefix sum will be
+ *                    inclusive, otherwise it will be exclusive.
+ *
+ * @note All threads of the warp have to execute this function for it to work
+ *       (and not dead-lock on newer architectures).
+ */
+template <bool inclusive, typename ValueType>
+__device__ void warp_prefix_sum(ValueType element, ValueType &prefix_sum)
+{
+    ValueType tmp{};
+    warp_prefix_sum<inclusive>(element, prefix_sum, tmp);
+}
+
+
 /**
  * @internal
  * First step of the calculation of a prefix sum. Calculates the prefix sum
