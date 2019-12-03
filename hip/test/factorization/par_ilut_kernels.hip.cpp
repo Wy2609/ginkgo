@@ -221,7 +221,7 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMaxIsEquivalentToRef)
 }
 
 
-TEST_F(ParIlut, DISABLED_KernelThresholdFilterIsEquivalentToRef)
+TEST_F(ParIlut, KernelThresholdFilterIsEquivalentToRef)
 {
     gko::Array<index_type> new_row_ptrs(ref);
     gko::Array<index_type> new_col_idxs(ref);
@@ -243,7 +243,7 @@ TEST_F(ParIlut, DISABLED_KernelThresholdFilterIsEquivalentToRef)
 }
 
 
-TEST_F(ParIlut, DISABLED_KernelThresholdFilterNoneIsEquivalentToRef)
+TEST_F(ParIlut, KernelThresholdFilterNoneIsEquivalentToRef)
 {
     gko::Array<index_type> new_row_ptrs(ref);
     gko::Array<index_type> new_col_idxs(ref);
@@ -265,7 +265,7 @@ TEST_F(ParIlut, DISABLED_KernelThresholdFilterNoneIsEquivalentToRef)
 }
 
 
-TEST_F(ParIlut, DISABLED_KernelComplexThresholdFilterIsEquivalentToRef)
+TEST_F(ParIlut, KernelComplexThresholdFilterIsEquivalentToRef)
 {
     gko::Array<index_type> new_row_ptrs(ref);
     gko::Array<index_type> new_col_idxs(ref);
@@ -290,7 +290,7 @@ TEST_F(ParIlut, DISABLED_KernelComplexThresholdFilterIsEquivalentToRef)
 }
 
 
-TEST_F(ParIlut, DISABLED_KernelComplexThresholdFilterNoneIsEquivalentToRef)
+TEST_F(ParIlut, KernelComplexThresholdFilterNoneIsEquivalentToRef)
 {
     gko::Array<index_type> new_row_ptrs(ref);
     gko::Array<index_type> new_col_idxs(ref);

@@ -60,7 +60,7 @@ remove_complex<ValueType> fast_abs(ValueType v)
     if (is_complex<ValueType>()) {
         return squared_norm(v);
     } else {
-        return abs(real(v));
+        return abs(v);
     }
 }
 

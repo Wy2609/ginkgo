@@ -198,7 +198,44 @@ void threshold_filter(std::shared_ptr<const CudaExecutor> exec,
                       remove_complex<ValueType> threshold,
                       Array<IndexType> &new_row_ptrs_array,
                       Array<IndexType> &new_col_idxs_array,
-                      Array<ValueType> &new_vals_array) GKO_NOT_IMPLEMENTED;
+                      Array<ValueType> &new_vals_array)
+{
+    // compute nnz for each row
+    auto num_rows = IndexType(a->get_size()[0]);
+    auto threshold_internal = kernel::fast_abs_internal<ValueType>(threshold);
+    auto num_blocks = ceildiv(num_rows, default_block_size);
+    new_row_ptrs_array.resize_and_reset(num_rows + 1);
+    auto new_row_ptrs = new_row_ptrs_array.get_data();
+    kernel::threshold_filter_nnz<<<num_blocks, default_block_size>>>(
+        a->get_const_row_ptrs(), as_cuda_type(a->get_const_values()), num_rows,
+        threshold_internal, new_row_ptrs);
+
+    // build row pointers
+    auto num_row_ptrs = num_rows + 1;
+    auto num_reduce_blocks = ceildiv(num_row_ptrs, default_block_size);
+    Array<IndexType> block_counts_array(exec, num_blocks);
+    auto block_counts = block_counts_array.get_data();
+
+    start_prefix_sum<default_block_size>
+        <<<num_reduce_blocks, default_block_size>>>(num_row_ptrs, new_row_ptrs,
+                                                    block_counts);
+    finalize_prefix_sum<default_block_size>
+        <<<num_reduce_blocks, default_block_size>>>(num_row_ptrs, new_row_ptrs,
+                                                    block_counts);
+
+    // build matrix
+    IndexType num_nnz{};
+    exec->get_master()->copy_from(exec.get(), 1, new_row_ptrs + num_rows,
+                                  &num_nnz);
+    new_col_idxs_array.resize_and_reset(num_nnz);
+    new_vals_array.resize_and_reset(num_nnz);
+    auto new_col_idxs = new_col_idxs_array.get_data();
+    auto new_vals = new_vals_array.get_data();
+    kernel::threshold_filter<<<num_blocks, default_block_size>>>(
+        a->get_const_row_ptrs(), a->get_const_col_idxs(),
+        as_cuda_type(a->get_const_values()), num_rows, threshold_internal,
+        new_row_ptrs, new_col_idxs, as_cuda_type(new_vals));
+}
 
 
 GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(

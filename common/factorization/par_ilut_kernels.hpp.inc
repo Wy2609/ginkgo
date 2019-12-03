@@ -46,21 +46,26 @@ constexpr auto basecase_local_size = 4;
 constexpr auto basecase_block_size = basecase_size / basecase_local_size;
 
 
-// function that is monotonic in abs(v)
-// we want this function to be easily computable on the device
 template <typename ValueType>
 __device__ remove_complex<ValueType> fast_abs(ValueType v)
 {
     if (is_complex<ValueType>()) {
-        return real(conj(v) * v);
+        return squared_norm(v);
     } else {
-        return abs(real(v));
+        return abs(v);
     }
 }
 
+template <typename ValueType>
+remove_complex<ValueType> fast_abs_internal(remove_complex<ValueType> v)
+{
+    if (is_complex<ValueType>()) {
+        return v * v;
+    } else {
+        return v;
+    }
+}
 
-// function that is monotonic in abs(v), inverse to fast_abs
-// this function can be heavy-weight, because it is only called once
 template <typename ValueType>
 remove_complex<ValueType> fast_abs_result(remove_complex<ValueType> v)
 {
@@ -253,9 +258,10 @@ __global__ __launch_bounds__(default_block_size) void filter_bucket(
 
 // this is necessary because we use a __host__ function in a __device__ function
 // (even though it is constexpr)
-template <typename ValueType>
+template <typename T>
 struct sentinel_helper {
-    static constexpr auto value = std::numeric_limits<ValueType>::infinity();
+    static constexpr auto inf = std::numeric_limits<T>::infinity();
+    static constexpr auto max = std::numeric_limits<T>::max();
 };
 
 
@@ -263,7 +269,7 @@ template <typename IndexType, typename ValueType>
 __global__ __launch_bounds__(basecase_block_size) void basecase_select(
     const ValueType *input, IndexType size, IndexType rank, ValueType *out)
 {
-    constexpr auto sentinel = sentinel_helper<ValueType>::value;
+    constexpr auto sentinel = sentinel_helper<ValueType>::inf;
     ValueType local[basecase_local_size];
     __shared__ ValueType sh_local[basecase_size];
     for (int i = 0; i < basecase_local_size; ++i) {
@@ -273,6 +279,142 @@ __global__ __launch_bounds__(basecase_block_size) void basecase_select(
     bitonic_sort<basecase_size, basecase_local_size>(local, sh_local);
     if (threadIdx.x == rank / basecase_local_size) {
         *out = local[rank % basecase_local_size];
+    }
+}
+
+
+template <typename IndexType, typename ValueType>
+__global__ __launch_bounds__(default_block_size) void threshold_filter_nnz(
+    const IndexType *row_ptrs, const ValueType *vals, IndexType num_rows,
+    remove_complex<ValueType> threshold_internal, IndexType *nnz)
+{
+    auto row = threadIdx.x + blockDim.x * blockIdx.x;
+    if (row >= num_rows) {
+        return;
+    }
+
+    IndexType count{};
+    for (auto i = row_ptrs[row]; i < row_ptrs[row + 1]; ++i) {
+        count += fast_abs(vals[i]) >= threshold_internal;
+    }
+    nnz[row] = count;
+}
+
+
+template <typename IndexType, typename ValueType>
+__global__ __launch_bounds__(default_block_size) void threshold_filter(
+    const IndexType *old_row_ptrs, const IndexType *old_col_idxs,
+    const ValueType *old_vals, IndexType num_rows,
+    remove_complex<ValueType> threshold_internal, const IndexType *new_row_ptrs,
+    IndexType *new_col_idxs, ValueType *new_vals)
+{
+    auto row = threadIdx.x + blockDim.x * blockIdx.x;
+    if (row >= num_rows) {
+        return;
+    }
+
+    IndexType count{};
+    auto base = new_row_ptrs[row];
+    for (auto i = old_row_ptrs[row]; i < old_row_ptrs[row + 1]; ++i) {
+        auto pred = fast_abs(old_vals[i]) >= threshold_internal;
+        if (pred) {
+            new_col_idxs[count + base] = old_col_idxs[i];
+            new_vals[count + base] = old_vals[i];
+        }
+        count += pred;
+    }
+}
+
+
+template <typename IndexType>
+__global__ __launch_bounds__(default_block_size) void spgeam_nnz(
+    const IndexType *a_row_ptrs, const IndexType *a_col_idxs,
+    const IndexType *b_row_ptrs, const IndexType *b_col_idxs,
+    IndexType num_rows, IndexType *nnz)
+{
+    constexpr auto sentinel = sentinel_helper<IndexType>::max;
+    auto row = threadIdx.x + blockDim.x * blockIdx.x;
+    if (row >= num_rows) {
+        return;
+    }
+
+    auto a_begin = a_row_ptrs[row];
+    auto b_begin = b_row_ptrs[row];
+    auto a_end = a_row_ptrs[row + 1];
+    auto b_end = b_row_ptrs[row + 1];
+    auto a_size = a_end - a_begin;
+    auto b_size = b_end - b_begin;
+    auto a_ptr = a_begin;
+    auto b_ptr = b_begin;
+    auto a_col = a_ptr < a_end ? a_col_idxs[a_ptr] : sentinel;
+    auto b_col = b_ptr < b_end ? b_col_idxs[b_ptr] : sentinel;
+    IndexType count{};
+    IndexType i{};
+    while (i < a_size + b_size) {
+        auto advance_a = (a_col <= b_col);
+        auto advance_b = (b_col <= a_col);
+        i += advance_a + advance_b;
+        a_ptr += advance_a;
+        b_ptr += advance_b;
+        if (advance_a) {
+            a_col = a_ptr < a_end ? a_col_idxs[a_ptr] : sentinel;
+        }
+        if (advance_b) {
+            b_col = b_ptr < b_end ? b_col_idxs[b_ptr] : sentinel;
+        }
+        ++count;
+    }
+    nnz[row] = count;
+}
+
+
+template <typename IndexType, typename ValueType>
+__global__ __launch_bounds__(default_block_size) void spgeam(
+    ValueType alpha, const IndexType *a_row_ptrs, const IndexType *a_col_idxs,
+    const ValueType *a_vals, ValueType beta, const IndexType *b_row_ptrs,
+    const IndexType *b_col_idxs, const ValueType *b_vals, IndexType num_rows,
+    const IndexType *c_row_ptrs, IndexType *c_col_idxs, ValueType *c_vals)
+{
+    constexpr auto sentinel = sentinel_helper<IndexType>::value;
+    auto row = threadIdx.x + blockDim.x * blockIdx.x;
+    if (row >= num_rows) {
+        return;
+    }
+
+    auto a_begin = a_row_ptrs[row];
+    auto b_begin = b_row_ptrs[row];
+    auto c_begin = c_row_ptrs[row];
+    auto a_end = a_row_ptrs[row + 1];
+    auto b_end = b_row_ptrs[row + 1];
+    auto a_size = a_end - a_begin;
+    auto b_size = b_end - b_begin;
+    auto a_ptr = a_begin;
+    auto b_ptr = b_begin;
+    auto a_col = a_ptr < a_end ? a_col_idxs[a_ptr] : sentinel;
+    auto b_col = b_ptr < b_end ? b_col_idxs[b_ptr] : sentinel;
+    IndexType count{};
+    IndexType i{};
+    IndexType c_col{};
+    ValueType c_val{};
+    while (i < a_size + b_size) {
+        auto advance_a = (a_col <= b_col);
+        auto advance_b = (b_col <= a_col);
+        c_col = advance_a ? a_col : b_col;
+        i += advance_a + advance_b;
+        a_ptr += advance_a;
+        b_ptr += advance_b;
+        c_val = zero<ValueType>();
+        if (advance_a) {
+            a_col = a_ptr < a_end ? a_col_idxs[a_ptr] : sentinel;
+            c_val += alpha * a_vals[a_ptr];
+        }
+        if (advance_b) {
+            b_col = b_ptr < b_end ? b_col_idxs[b_ptr] : sentinel;
+            c_val += beta * b_vals[b_ptr];
+        }
+        c_col_idxs[c_begin + count] = c_col;
+        c_vals[c_begin + count] = c_val;
+        ++count;
     }
 }
 
