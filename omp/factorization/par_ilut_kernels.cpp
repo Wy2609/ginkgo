@@ -54,28 +54,6 @@ namespace omp {
 namespace par_ilut_factorization {
 
 
-template <typename ValueType>
-remove_complex<ValueType> fast_abs(ValueType v)
-{
-    if (is_complex<ValueType>()) {
-        return squared_norm(v);
-    } else {
-        return abs(v);
-    }
-}
-
-
-template <typename ValueType>
-remove_complex<ValueType> fast_abs_result(remove_complex<ValueType> v)
-{
-    if (is_complex<ValueType>()) {
-        return sqrt(v);
-    } else {
-        return v;
-    }
-}
-
-
 template <typename ValueType, typename IndexType>
 remove_complex<ValueType> threshold_select(
     std::shared_ptr<const OmpExecutor> exec, const ValueType *values,
@@ -87,10 +65,9 @@ remove_complex<ValueType> threshold_select(
     auto begin = data.get_data();
     auto target = begin + rank;
     auto end = begin + size;
-    std::nth_element(begin, target, end, [](ValueType a, ValueType b) {
-        return fast_abs(a) < fast_abs(b);
-    });
-    return fast_abs_result<ValueType>(fast_abs(*target));
+    std::nth_element(begin, target, end,
+                     [](ValueType a, ValueType b) { return abs(a) < abs(b); });
+    return abs(*target);
 }
 
 
@@ -110,7 +87,6 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
     auto row_ptrs = a->get_const_row_ptrs();
     auto col_idxs = a->get_const_col_idxs();
     auto vals = a->get_const_values();
-    auto threshold_internal = fast_abs<ValueType>(threshold);
 
     // first sweep: count nnz for each row
     new_row_ptrs_array.resize_and_reset(num_rows + 1);
@@ -118,9 +94,9 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
 
 #pragma omp parallel for
     for (size_type row = 0; row < num_rows; ++row) {
-        new_row_ptrs[row + 1] = std::count_if(
-            vals + row_ptrs[row], vals + row_ptrs[row + 1],
-            [&](ValueType v) { return fast_abs(v) >= threshold_internal; });
+        new_row_ptrs[row + 1] =
+            std::count_if(vals + row_ptrs[row], vals + row_ptrs[row + 1],
+                          [&](ValueType v) { return abs(v) >= threshold; });
     }
 
     // build row pointers: exclusive scan (thus the + 1)
@@ -140,7 +116,7 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
         auto new_nz = new_row_ptrs[row];
         for (size_type nz = row_ptrs[row]; nz < size_type(row_ptrs[row + 1]);
              ++nz) {
-            if (fast_abs(vals[nz]) >= threshold_internal) {
+            if (abs(vals[nz]) >= threshold) {
                 new_col_idxs[new_nz] = col_idxs[nz];
                 new_vals[new_nz] = vals[nz];
                 ++new_nz;

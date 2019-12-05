@@ -131,7 +131,7 @@ TEST_F(ParIlut, KernelThresholdSelectIsEquivalentToRef)
     auto dres = gko::kernels::omp::par_ilut_factorization::threshold_select(
         omp, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -147,7 +147,7 @@ TEST_F(ParIlut, KernelThresholdSelectMinIsEquivalentToRef)
     auto dres = gko::kernels::omp::par_ilut_factorization::threshold_select(
         omp, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -163,7 +163,7 @@ TEST_F(ParIlut, KernelThresholdSelectMaxIsEquivalentToRef)
     auto dres = gko::kernels::omp::par_ilut_factorization::threshold_select(
         omp, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -181,7 +181,7 @@ TEST_F(ParIlut, KernelComplexThresholdSelectIsEquivalentToRef)
         std::complex<value_type>>(omp, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -199,7 +199,7 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMinIsEquivalentToRef)
         std::complex<value_type>>(omp, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -217,7 +217,7 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMaxIsEquivalentToRef)
         std::complex<value_type>>(omp, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 

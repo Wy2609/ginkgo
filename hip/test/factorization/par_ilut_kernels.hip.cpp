@@ -131,7 +131,7 @@ TEST_F(ParIlut, KernelThresholdSelectIsEquivalentToRef)
     auto dres = gko::kernels::hip::par_ilut_factorization::threshold_select(
         hip, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -147,7 +147,7 @@ TEST_F(ParIlut, KernelThresholdSelectMinIsEquivalentToRef)
     auto dres = gko::kernels::hip::par_ilut_factorization::threshold_select(
         hip, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -163,7 +163,7 @@ TEST_F(ParIlut, KernelThresholdSelectMaxIsEquivalentToRef)
     auto dres = gko::kernels::hip::par_ilut_factorization::threshold_select(
         hip, dmtx1->get_const_values(), size, rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    ASSERT_EQ(res, dres);
 }
 
 
@@ -181,7 +181,8 @@ TEST_F(ParIlut, KernelComplexThresholdSelectIsEquivalentToRef)
         std::complex<value_type>>(hip, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    // host and device code might calculate abs(complex) differently
+    ASSERT_NEAR(res, dres, 1e-14);
 }
 
 
@@ -199,7 +200,8 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMinIsEquivalentToRef)
         std::complex<value_type>>(hip, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    // host and device code might calculate abs(complex) differently
+    ASSERT_NEAR(res, dres, 1e-14);
 }
 
 
@@ -217,7 +219,8 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMaxIsEquivalentToRef)
         std::complex<value_type>>(hip, dmtx1_complex->get_const_values(), size,
                                   rank);
 
-    GKO_ASSERT_EQ(res, dres);
+    // host and device code might calculate abs(complex) differently
+    ASSERT_NEAR(res, dres, 1e-14);
 }
 
 

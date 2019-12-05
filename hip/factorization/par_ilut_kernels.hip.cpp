@@ -175,7 +175,7 @@ remove_complex<ValueType> threshold_select(
             auto end = begin + bucket_size;
             auto middle = begin + rank;
             std::nth_element(begin, middle, end);
-            return kernel::fast_abs_result<ValueType>(*middle);
+            return *middle;
         }
     }
 
@@ -187,7 +187,7 @@ remove_complex<ValueType> threshold_select(
     AbsType result{};
     exec->get_master()->copy_from(exec.get(), 1, result_array.get_const_data(),
                                   &result);
-    return kernel::fast_abs_result<ValueType>(result);
+    return result;
 }
 
 
@@ -203,17 +203,18 @@ void threshold_filter(std::shared_ptr<const HipExecutor> exec,
                       Array<IndexType> &new_col_idxs_array,
                       Array<ValueType> &new_vals_array)
 {
+    auto old_row_ptrs = a->get_const_row_ptrs();
+    auto old_col_idxs = a->get_const_col_idxs();
+    auto old_vals = a->get_const_values();
     // compute nnz for each row
     auto num_rows = IndexType(a->get_size()[0]);
-    auto threshold_internal = kernel::fast_abs_internal<ValueType>(threshold);
     auto num_blocks = ceildiv(num_rows, default_block_size);
     new_row_ptrs_array.resize_and_reset(num_rows + 1);
     auto new_row_ptrs = new_row_ptrs_array.get_data();
     hipLaunchKernelGGL(HIP_KERNEL_NAME(kernel::threshold_filter_nnz),
                        dim3(num_blocks), dim3(default_block_size), 0, 0,
-                       a->get_const_row_ptrs(),
-                       as_hip_type(a->get_const_values()), num_rows,
-                       threshold_internal, new_row_ptrs);
+                       old_row_ptrs, as_hip_type(old_vals), num_rows, threshold,
+                       new_row_ptrs);
 
     // build row pointers
     auto num_row_ptrs = num_rows + 1;
@@ -236,11 +237,11 @@ void threshold_filter(std::shared_ptr<const HipExecutor> exec,
     new_vals_array.resize_and_reset(num_nnz);
     auto new_col_idxs = new_col_idxs_array.get_data();
     auto new_vals = new_vals_array.get_data();
-    hipLaunchKernelGGL(
-        HIP_KERNEL_NAME(kernel::threshold_filter), dim3(num_blocks),
-        dim3(default_block_size), 0, 0, a->get_const_row_ptrs(),
-        a->get_const_col_idxs(), as_hip_type(a->get_const_values()), num_rows,
-        threshold_internal, new_row_ptrs, new_col_idxs, as_hip_type(new_vals));
+    hipLaunchKernelGGL(HIP_KERNEL_NAME(kernel::threshold_filter),
+                       dim3(num_blocks), dim3(default_block_size), 0, 0,
+                       old_row_ptrs, old_col_idxs, as_hip_type(old_vals),
+                       num_rows, threshold, new_row_ptrs, new_col_idxs,
+                       as_hip_type(new_vals));
 }
 
 

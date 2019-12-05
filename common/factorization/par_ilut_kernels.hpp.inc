@@ -46,37 +46,6 @@ constexpr auto basecase_local_size = 4;
 constexpr auto basecase_block_size = basecase_size / basecase_local_size;
 
 
-template <typename ValueType>
-__device__ remove_complex<ValueType> fast_abs(ValueType v)
-{
-    if (is_complex<ValueType>()) {
-        return squared_norm(v);
-    } else {
-        return abs(v);
-    }
-}
-
-template <typename ValueType>
-remove_complex<ValueType> fast_abs_internal(remove_complex<ValueType> v)
-{
-    if (is_complex<ValueType>()) {
-        return v * v;
-    } else {
-        return v;
-    }
-}
-
-template <typename ValueType>
-remove_complex<ValueType> fast_abs_result(remove_complex<ValueType> v)
-{
-    if (is_complex<ValueType>()) {
-        return sqrt(v);
-    } else {
-        return v;
-    }
-}
-
-
 // must be launched with one thread block and block size == searchtree_width
 template <typename IndexType, typename ValueType>
 __global__ __launch_bounds__(searchtree_width) void build_searchtree(
@@ -91,7 +60,7 @@ __global__ __launch_bounds__(searchtree_width) void build_searchtree(
     for (auto i = 0; i < oversampling_factor; ++i) {
         auto lidx = idx * oversampling_factor + i;
         auto val = input[IndexType(lidx * stride)];
-        samples[i] = fast_abs(val);
+        samples[i] = abs(val);
     }
     __shared__ AbsType sh_samples[sample_size];
     bitonic_sort<sample_size, oversampling_factor>(samples, sh_samples);
@@ -134,7 +103,7 @@ __global__ __launch_bounds__(default_block_size) void count_buckets(
     auto end = min(block_end, size);
     for (IndexType i = begin; i < end; i += default_block_size) {
         // traverse the search tree with the input element
-        auto el = fast_abs(input[i]);
+        auto el = abs(input[i]);
         IndexType tree_idx{};
 #pragma unroll
         for (auto level = 0; level < searchtree_height; ++level) {
@@ -250,7 +219,7 @@ __global__ __launch_bounds__(default_block_size) void filter_bucket(
         auto found = bucket == oracles[i];
         auto ofs = atomic_add<IndexType>(&counter, found);
         if (found) {
-            output[ofs] = fast_abs(input[i]);
+            output[ofs] = abs(input[i]);
         }
     }
 }
@@ -286,7 +255,7 @@ __global__ __launch_bounds__(basecase_block_size) void basecase_select(
 template <typename IndexType, typename ValueType>
 __global__ __launch_bounds__(default_block_size) void threshold_filter_nnz(
     const IndexType *row_ptrs, const ValueType *vals, IndexType num_rows,
-    remove_complex<ValueType> threshold_internal, IndexType *nnz)
+    remove_complex<ValueType> threshold, IndexType *nnz)
 {
     auto row = threadIdx.x + blockDim.x * blockIdx.x;
     if (row >= num_rows) {
@@ -295,7 +264,7 @@ __global__ __launch_bounds__(default_block_size) void threshold_filter_nnz(
 
     IndexType count{};
     for (auto i = row_ptrs[row]; i < row_ptrs[row + 1]; ++i) {
-        count += fast_abs(vals[i]) >= threshold_internal;
+        count += abs(vals[i]) >= threshold;
     }
     nnz[row] = count;
 }
@@ -305,7 +274,7 @@ template <typename IndexType, typename ValueType>
 __global__ __launch_bounds__(default_block_size) void threshold_filter(
     const IndexType *old_row_ptrs, const IndexType *old_col_idxs,
     const ValueType *old_vals, IndexType num_rows,
-    remove_complex<ValueType> threshold_internal, const IndexType *new_row_ptrs,
+    remove_complex<ValueType> threshold, const IndexType *new_row_ptrs,
     IndexType *new_col_idxs, ValueType *new_vals)
 {
     auto row = threadIdx.x + blockDim.x * blockIdx.x;
@@ -316,7 +285,7 @@ __global__ __launch_bounds__(default_block_size) void threshold_filter(
     IndexType count{};
     auto base = new_row_ptrs[row];
     for (auto i = old_row_ptrs[row]; i < old_row_ptrs[row + 1]; ++i) {
-        auto pred = fast_abs(old_vals[i]) >= threshold_internal;
+        auto pred = abs(old_vals[i]) >= threshold;
         if (pred) {
             new_col_idxs[count + base] = old_col_idxs[i];
             new_vals[count + base] = old_vals[i];
