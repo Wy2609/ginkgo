@@ -223,7 +223,7 @@ TEST_F(ParIlut, KernelThresholdFilterNone)
     auto res_mtx = Csr::create(exec, mtx1->get_size(), new_vals, new_col_idxs,
                                new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx1, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx1, res_mtx, 0);
 }
 
 
@@ -239,7 +239,7 @@ TEST_F(ParIlut, KernelThresholdFilterSomeAtThreshold)
     auto res_mtx = Csr::create(exec, mtx1->get_size(), new_vals, new_col_idxs,
                                new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx1_expect_thrm2, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx1_expect_thrm2, res_mtx, 0);
 }
 
 
@@ -255,7 +255,7 @@ TEST_F(ParIlut, KernelThresholdFilterSomeAboveThreshold)
     auto res_mtx = Csr::create(exec, mtx1->get_size(), new_vals, new_col_idxs,
                                new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx1_expect_thrm3, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx1_expect_thrm3, res_mtx, 0);
 }
 
 
@@ -272,7 +272,7 @@ TEST_F(ParIlut, KernelComplexThresholdFilterNone)
     auto res_mtx = ComplexCsr::create(exec, mtx1->get_size(), new_vals,
                                       new_col_idxs, new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx1_complex, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx1_complex, res_mtx, 0);
 }
 
 
@@ -289,7 +289,7 @@ TEST_F(ParIlut, KernelComplexThresholdFilterSomeAtThreshold)
     auto res_mtx = ComplexCsr::create(exec, mtx1->get_size(), new_vals,
                                       new_col_idxs, new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx1_expect_complex_thrm, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx1_expect_complex_thrm, res_mtx, 0);
 }
 
 
@@ -307,7 +307,7 @@ TEST_F(ParIlut, KernelSpGeAM)
     auto res_mtx = Csr::create(exec, mtx1->get_size(), new_vals, new_col_idxs,
                                new_row_ptrs);
 
-    GKO_ASSERT_MTX_NEAR(mtx23_expect_geam, res_mtx, 0);
+    GKO_ASSERT_MTX_NEAR_SPARSITY(mtx23_expect_geam, res_mtx, 0);
 }
 
 
