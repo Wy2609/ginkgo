@@ -82,7 +82,7 @@ void threshold_filter(std::shared_ptr<const ReferenceExecutor> exec,
                       remove_complex<ValueType> threshold,
                       Array<IndexType> &new_row_ptrs_array,
                       Array<IndexType> &new_col_idxs_array,
-                      Array<ValueType> &new_vals_array, bool is_lower)
+                      Array<ValueType> &new_vals_array, bool /* is_lower */)
 {
     auto num_rows = a->get_size()[0];
     auto row_ptrs = a->get_const_row_ptrs();

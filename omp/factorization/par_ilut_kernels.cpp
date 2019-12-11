@@ -101,7 +101,7 @@ void threshold_filter(std::shared_ptr<const OmpExecutor> exec,
         size_type end = row_ptrs[row + 1] - is_lower;
         new_row_ptrs[row + 1] =
             std::count_if(vals + begin, vals + end,
-                          [&](ValueType v) { abs(v) >= threshold; });
+                          [&](ValueType v) { return abs(v) >= threshold; });
         // add diagonal
         new_row_ptrs[row + 1]++;
     }
