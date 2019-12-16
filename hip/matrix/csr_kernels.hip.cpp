@@ -630,11 +630,12 @@ void advanced_spgemm(std::shared_ptr<const HipExecutor> exec,
         c_vals_array.resize_and_reset(c_nnz);
         auto c_col_idxs = c_col_idxs_array.get_data();
         auto c_vals = c_vals_array.get_data();
-        hipLaunchKernelGGL(HIP_KERNEL_NAME(kernel::spgeam), dim3(num_blocks),
-                           dim3(default_block_size), 0, 0, one<ValueType>(),
-                           c_tmp_row_ptrs, c_tmp_col_idxs, c_tmp_vals, vbeta,
-                           d_row_ptrs, d_col_idxs, d_vals, m, c_row_ptrs,
-                           c_col_idxs, c_vals);
+        hipLaunchKernelGGL(
+            HIP_KERNEL_NAME(kernel::spgeam), dim3(num_blocks),
+            dim3(default_block_size), 0, 0, as_hip_type(one<ValueType>()),
+            c_tmp_row_ptrs, c_tmp_col_idxs, as_hip_type(c_tmp_vals),
+            as_hip_type(vbeta), d_row_ptrs, d_col_idxs, as_hip_type(d_vals), m,
+            c_row_ptrs, c_col_idxs, as_hip_type(c_vals));
     } else {
         GKO_NOT_IMPLEMENTED;
     }
