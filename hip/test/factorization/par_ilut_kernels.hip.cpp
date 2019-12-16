@@ -140,7 +140,11 @@ protected:
         auto dres = gko::kernels::hip::par_ilut_factorization::threshold_select(
             hip, dmtx->get_const_values(), size, rank);
 
-        ASSERT_EQ(res, dres);
+        if (gko::is_complex_s<typename Mtx::value_type>::value) {
+            ASSERT_NEAR(res, dres, 1e-14);
+        } else {
+            ASSERT_EQ(res, dres);
+        }
     }
 
     template <typename Mtx>
@@ -253,7 +257,7 @@ TEST_F(ParIlut, KernelThresholdSelectMaxIsEquivalentToRef)
 TEST_F(ParIlut, KernelComplexThresholdSelectIsEquivalentToRef)
 {
     test_select(mtx_l_complex, dmtx_l_complex,
-                mtx_l->get_num_stored_elements() / 3);
+                mtx_l_complex->get_num_stored_elements() / 3);
 }
 
 
@@ -266,7 +270,7 @@ TEST_F(ParIlut, KernelComplexThresholdSelectMinIsEquivalentToRef)
 TEST_F(ParIlut, KernelComplexThresholdSelectMaxLowerIsEquivalentToRef)
 {
     test_select(mtx_l_complex, dmtx_l_complex,
-                mtx_l->get_num_stored_elements() - 1);
+                mtx_l_complex->get_num_stored_elements() - 1);
 }
 
 
