@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ginkgo/core/base/exception_helpers.hpp>
 
 
+#include <iostream>
 #include "core/base/extended_float.hpp"
 #include "core/preconditioner/jacobi_utils.hpp"
 #include "core/synthesizer/implementation_selection.hpp"
@@ -53,7 +54,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "hip/components/warp_blas.hip.hpp"
 #include "hip/components/zero_array.hip.hpp"
 #include "hip/preconditioner/jacobi_common.hip.hpp"
-
 
 namespace gko {
 namespace kernels {
@@ -88,8 +88,11 @@ void generate(syn::value_list<int, max_block_size>,
     const dim3 grid_size(ceildiv(num_blocks, warps_per_block * blocks_per_warp),
                          1, 1);
     const dim3 block_size(subwarp_size, blocks_per_warp, warps_per_block);
-
+    std::cout << grid_size.x << std::endl;
+    std::cout << block_size.x << " " << block_size.y << " " << block_size.z
+              << std::endl;
     if (block_precisions) {
+        std::cout << "adaptive" << std::endl;
         hipLaunchKernelGGL(
             HIP_KERNEL_NAME(
                 kernel::adaptive_generate<max_block_size, subwarp_size,
@@ -100,6 +103,7 @@ void generate(syn::value_list<int, max_block_size>,
             as_hip_type(block_data), storage_scheme, as_hip_type(conditioning),
             block_precisions, block_ptrs, num_blocks);
     } else {
+        std::cout << "normal" << std::endl;
         hipLaunchKernelGGL(
             HIP_KERNEL_NAME(kernel::generate<max_block_size, subwarp_size,
                                              warps_per_block>),

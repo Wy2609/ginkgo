@@ -86,6 +86,8 @@ __global__ void __launch_bounds__(warps_per_block *config::warp_size) generate(
     const ValueType *__restrict__ values, ValueType *__restrict__ block_data,
     preconditioner::block_interleaved_storage_scheme<IndexType> storage_scheme,
     const IndexType *__restrict__ block_ptrs, size_type num_blocks)
+    __attribute__((amdgpu_flat_work_group_size(warps_per_block *
+                                               config::warp_size)))
 {
     const auto block_id =
         thread::get_subwarp_id<subwarp_size, warps_per_block>();

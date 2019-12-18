@@ -287,17 +287,26 @@ protected:
 //     // TODO: actually check if the results are the same
 // }
 
+TEST_F(Jacobi, HipPreconditionerEquivalentToRefWithBlockSize16)
+{
+    initialize_data({0, 16, 32, 48, 64}, {}, {}, 16, 100, 110);
 
-// TEST_F(Jacobi, HipPreconditionerEquivalentToRefWithBlockSize32)
-// {
-//     initialize_data({0, 32, 64, 96, 128}, {}, {}, 32, 100, 110);
+    auto bj = bj_factory->generate(mtx);
+    auto d_bj = d_bj_factory->generate(mtx);
 
-//     auto bj = bj_factory->generate(mtx);
-//     auto d_bj = d_bj_factory->generate(mtx);
+    GKO_ASSERT_MTX_NEAR(gko::as<Bj>(d_bj.get()), gko::as<Bj>(bj.get()), 1e-13);
+}
 
-//     GKO_ASSERT_MTX_NEAR(gko::as<Bj>(d_bj.get()), gko::as<Bj>(bj.get()),
-//     1e-13);
-// }
+
+TEST_F(Jacobi, HipPreconditionerEquivalentToRefWithBlockSize32)
+{
+    initialize_data({0, 32, 64, 96, 128}, {}, {}, 32, 100, 110);
+
+    auto bj = bj_factory->generate(mtx);
+    auto d_bj = d_bj_factory->generate(mtx);
+
+    GKO_ASSERT_MTX_NEAR(gko::as<Bj>(d_bj.get()), gko::as<Bj>(bj.get()), 1e-13);
+}
 
 
 // TEST_F(Jacobi, HipPreconditionerEquivalentToRefWithDifferentBlockSize)
@@ -417,19 +426,20 @@ protected:
 // }
 
 
-TEST_F(Jacobi, ComputesTheSameConditionNumberAsRef)
-{
-    initialize_data({0, 11, 24, 33, 45, 55, 67, 70, 80, 92, 100},
-                    {dp, dp, dp, dp, dp, dp, dp, dp, dp, dp}, {}, 13, 97, 99);
+// TEST_F(Jacobi, ComputesTheSameConditionNumberAsRef)
+// {
+//     initialize_data({0, 11, 24, 33, 45, 55, 67, 70, 80, 92, 100},
+//                     {dp, dp, dp, dp, dp, dp, dp, dp, dp, dp}, {}, 13, 97,
+//                     99);
 
-    auto bj = bj_factory->generate(mtx);
-    auto d_bj = clone(ref, d_bj_factory->generate(mtx));
+//     auto bj = bj_factory->generate(mtx);
+//     auto d_bj = clone(ref, d_bj_factory->generate(mtx));
 
-    for (int i = 0; i < gko::as<Bj>(bj.get())->get_num_blocks(); ++i) {
-        EXPECT_NEAR(bj->get_conditioning()[i], d_bj->get_conditioning()[i],
-                    1e-9);
-    }
-}
+//     for (int i = 0; i < gko::as<Bj>(bj.get())->get_num_blocks(); ++i) {
+//         EXPECT_NEAR(bj->get_conditioning()[i], d_bj->get_conditioning()[i],
+//                     1e-9);
+//     }
+// }
 
 
 // TEST_F(Jacobi, SelectsTheSamePrecisionsAsRef)

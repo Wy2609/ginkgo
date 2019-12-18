@@ -41,10 +41,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ginkgo/core/matrix/dense.hpp>
 
 
+#include <iostream>
 #include "core/base/extended_float.hpp"
 #include "core/preconditioner/jacobi_kernels.hpp"
 #include "core/preconditioner/jacobi_utils.hpp"
-
 
 namespace gko {
 namespace preconditioner {
@@ -168,23 +168,25 @@ void Jacobi<ValueType, IndexType>::generate(const LinOp *system_matrix)
     if (parameters_.block_pointers.get_data() == nullptr) {
         this->detect_blocks(csr_mtx.get());
     }
-
+    std::cout << "Step 1" << std::endl;
     const auto all_block_opt = parameters_.storage_optimization.of_all_blocks;
     auto &precisions = parameters_.storage_optimization.block_wise;
     // if adaptive version is used, make sure that the precision array is of the
     // correct size by replicating it multiple times if needed
     if (parameters_.storage_optimization.is_block_wise ||
         all_block_opt != precision_reduction(0, 0)) {
+        std::cout << "Step 1.1" << std::endl;
         if (!parameters_.storage_optimization.is_block_wise) {
             precisions = gko::Array<precision_reduction>(exec, {all_block_opt});
         }
+        std::cout << "Step 1.2" << std::endl;
         Array<precision_reduction> tmp(
             exec, parameters_.block_pointers.get_num_elems() - 1);
         exec->run(jacobi::make_initialize_precisions(precisions, tmp));
         precisions = std::move(tmp);
         conditioning_.resize_and_reset(num_blocks_);
     }
-
+    std::cout << "Step 2" << std::endl;
     exec->run(jacobi::make_generate(
         csr_mtx.get(), num_blocks_, parameters_.max_block_size,
         parameters_.accuracy, storage_scheme_, conditioning_, precisions,
