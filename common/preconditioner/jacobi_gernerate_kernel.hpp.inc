@@ -85,7 +85,8 @@ __global__ void __launch_bounds__(warps_per_block *config::warp_size) generate(
     const IndexType *__restrict__ col_idxs,
     const ValueType *__restrict__ values, ValueType *__restrict__ block_data,
     preconditioner::block_interleaved_storage_scheme<IndexType> storage_scheme,
-    const IndexType *__restrict__ block_ptrs, size_type num_blocks)
+    const IndexType *__restrict__ block_ptrs, size_type num_blocks,
+    ValueType *device_row, unsigned *dperm, unsigned *dtrans_perm)
     __attribute__((amdgpu_flat_work_group_size(warps_per_block *
                                                config::warp_size)))
 {
@@ -93,12 +94,21 @@ __global__ void __launch_bounds__(warps_per_block *config::warp_size) generate(
         thread::get_subwarp_id<subwarp_size, warps_per_block>();
     const auto block = group::this_thread_block();
     ValueType row[max_block_size];
+    for (int i = 0; i < max_block_size; i++) {
+        row[i] = 0;
+    }
     __shared__ UninitializedArray<ValueType, max_block_size * warps_per_block>
         workspace;
     csr::extract_transposed_diag_blocks<max_block_size, warps_per_block>(
         block, config::warp_size / subwarp_size, row_ptrs, col_idxs, values,
         block_ptrs, num_blocks, row, 1,
         workspace + threadIdx.z * max_block_size);
+    __syncthreads();
+    // for (int i = 0; i < max_block_size; i++) {
+    //     device_row[i + block.thread_rank() * max_block_size] = row[i];
+    // }
+    // __syncthreads();
+    // same
     const auto subwarp = group::tiled_partition<subwarp_size>(block);
     if (block_id < num_blocks) {
         const auto block_size = block_ptrs[block_id + 1] - block_ptrs[block_id];
@@ -106,11 +116,22 @@ __global__ void __launch_bounds__(warps_per_block *config::warp_size) generate(
         auto trans_perm = subwarp.thread_rank();
         invert_block<max_block_size>(subwarp, block_size, row, perm,
                                      trans_perm);
+        // __syncthreads();
+        // if (subwarp.thread_rank() == 0){
+        // dperm[block_id]=perm;
+        // dtrans_perm[block_id]=trans_perm;
+        // }
+        // __syncthreads();
         copy_matrix<max_block_size, and_transpose>(
             subwarp, block_size, row, 1, perm, trans_perm,
             block_data + storage_scheme.get_global_block_offset(block_id),
             storage_scheme.get_stride());
     }
+    __syncthreads();
+    for (int i = 0; i < max_block_size; i++) {
+        device_row[i + block.thread_rank() * max_block_size] = row[i];
+    }
+    __syncthreads();
 }
 
 

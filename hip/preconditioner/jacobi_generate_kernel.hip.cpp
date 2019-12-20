@@ -40,6 +40,7 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include <ginkgo/core/base/exception_helpers.hpp>
 
 
+#include <iomanip>
 #include <iostream>
 #include "core/base/extended_float.hpp"
 #include "core/preconditioner/jacobi_utils.hpp"
@@ -54,7 +55,6 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #include "hip/components/warp_blas.hip.hpp"
 #include "hip/components/zero_array.hip.hpp"
 #include "hip/preconditioner/jacobi_common.hip.hpp"
-
 namespace gko {
 namespace kernels {
 namespace hip {
@@ -103,6 +103,11 @@ void generate(syn::value_list<int, max_block_size>,
             as_hip_type(block_data), storage_scheme, as_hip_type(conditioning),
             block_precisions, block_ptrs, num_blocks);
     } else {
+        Array<ValueType> workspace{
+            mtx->get_executor(),
+            max_block_size * config::warp_size * warps_per_block};
+        Array<unsigned> perm{mtx->get_executor(), num_blocks};
+        Array<unsigned> tran_perm{mtx->get_executor(), num_blocks};
         std::cout << "normal" << std::endl;
         hipLaunchKernelGGL(
             HIP_KERNEL_NAME(kernel::generate<max_block_size, subwarp_size,
@@ -110,7 +115,24 @@ void generate(syn::value_list<int, max_block_size>,
             dim3(grid_size), dim3(block_size), 0, 0, mtx->get_size()[0],
             mtx->get_const_row_ptrs(), mtx->get_const_col_idxs(),
             as_hip_type(mtx->get_const_values()), as_hip_type(block_data),
-            storage_scheme, block_ptrs, num_blocks);
+            storage_scheme, block_ptrs, num_blocks,
+            as_hip_type(workspace.get_data()), as_hip_type(perm.get_data()),
+            as_hip_type(tran_perm.get_data()));
+        workspace.set_executor(mtx->get_executor()->get_master());
+        perm.set_executor(mtx->get_executor()->get_master());
+        tran_perm.set_executor(mtx->get_executor()->get_master());
+        std::cout << "row" << std::endl;
+        std::cout << std::setprecision(20);
+        for (int i = 0;
+             i < max_block_size * config::warp_size * warps_per_block; i++) {
+            std::cout << workspace.get_data()[i] << " ";
+        }
+        std::cout << std::endl;
+        // std::cout << "q" << std::endl;
+        // for (int i = 0; i < num_blocks; i++) {
+        //     std::cout << perm.get_data()[i] << " " << tran_perm.get_data()[i]
+        //     << std::endl;
+        // }
     }
 }
 
@@ -132,6 +154,7 @@ void generate(std::shared_ptr<const HipExecutor> exec,
               const Array<IndexType> &block_pointers, Array<ValueType> &blocks)
 {
     zero_array(blocks.get_num_elems(), blocks.get_data());
+    std::cout << "block number : " << blocks.get_num_elems() << std::endl;
     select_generate(compiled_kernels(),
                     [&](int compiled_block_size) {
                         return max_block_size <= compiled_block_size;
@@ -141,6 +164,13 @@ void generate(std::shared_ptr<const HipExecutor> exec,
                     blocks.get_data(), storage_scheme, conditioning.get_data(),
                     block_precisions.get_data(),
                     block_pointers.get_const_data(), num_blocks);
+    blocks.set_executor(exec->get_master());
+    std::cout << std::setprecision(20);
+    for (int i = 0; i < blocks.get_num_elems(); i++) {
+        std::cout << blocks.get_data()[i] << " ";
+    }
+    std::cout << std::endl;
+    blocks.set_executor(exec);
 }
 
 GKO_INSTANTIATE_FOR_EACH_VALUE_AND_INDEX_TYPE(

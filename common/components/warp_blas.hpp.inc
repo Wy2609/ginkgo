@@ -60,6 +60,7 @@ __device__ __forceinline__ void apply_gauss_jordan_transform(
     ValueType *__restrict__ row, bool &__restrict__ status)
 {
     auto key_col_elem = group.shfl(row[key_col], key_row);
+    __syncthreads();
     if (key_col_elem == zero<ValueType>()) {
         // TODO: implement error handling for GPUs to be able to properly
         //       report it here
@@ -67,19 +68,22 @@ __device__ __forceinline__ void apply_gauss_jordan_transform(
         return;
     }
     if (group.thread_rank() == key_row) {
-        key_col_elem = one<ValueType>() / key_col_elem;
+        key_col_elem = 1;
     } else {
-        key_col_elem = -row[key_col] / key_col_elem;
+        key_col_elem = 1;
     }
 #pragma unroll
     for (int32 i = 0; i < max_problem_size; ++i) {
         const auto key_row_elem = group.shfl(row[i], key_row);
+        __syncthreads();
         if (group.thread_rank() == key_row) {
             row[i] = zero<ValueType>();
         }
-        row[i] += key_col_elem * key_row_elem;
+        row[i] = key_row_elem;
+        __syncthreads();
     }
     row[key_col] = key_col_elem;
+    __syncthreads();
 }
 
 
@@ -136,6 +140,7 @@ __device__ __forceinline__ bool invert_block(const Group &__restrict__ group,
             break;
         }
         const auto piv = choose_pivot(group, row[i], pivoted);
+        __syncthreads();
         if (group.thread_rank() == piv) {
             perm = i;
             pivoted = true;
@@ -145,6 +150,7 @@ __device__ __forceinline__ bool invert_block(const Group &__restrict__ group,
         }
         apply_gauss_jordan_transform<max_problem_size>(group, piv, i, row,
                                                        status);
+        __syncthreads();
     }
     return status;
 }

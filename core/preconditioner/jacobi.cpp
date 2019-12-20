@@ -166,6 +166,7 @@ void Jacobi<ValueType, IndexType>::generate(const LinOp *system_matrix)
         exec, system_matrix);
 
     if (parameters_.block_pointers.get_data() == nullptr) {
+        std::cout << "Detect" << std::endl;
         this->detect_blocks(csr_mtx.get());
     }
     std::cout << "Step 1" << std::endl;

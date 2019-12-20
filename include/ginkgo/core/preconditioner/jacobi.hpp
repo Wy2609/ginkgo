@@ -33,10 +33,10 @@ OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 #ifndef GKO_CORE_PRECONDITIONER_JACOBI_HPP_
 #define GKO_CORE_PRECONDITIONER_JACOBI_HPP_
 
-
 #include <ginkgo/core/base/array.hpp>
 #include <ginkgo/core/base/lin_op.hpp>
 #include <ginkgo/core/matrix/dense.hpp>
+#include <iostream>
 
 
 namespace gko {
@@ -66,7 +66,11 @@ struct block_interleaved_storage_scheme {
         : block_offset{block_offset},
           group_offset{group_offset},
           group_power{group_power}
-    {}
+    {
+        std::cout << "block_offset: " << block_offset
+                  << " group_offset: " << group_offset
+                  << " group_power: " << group_power << std::endl;
+    }
 
     /**
      * The offset between consecutive blocks within the group.
